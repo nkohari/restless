@@ -24,24 +24,27 @@ class RestConsole
 	start: ->
 		@readline.on 'line', (line) => @onInput line.trim()
 		@readline.on 'close', => @onClose
+		
+		process.stdin.on 'keypress', (s, key) =>
+			if key? and key.ctrl and key.name is 'l'
+				@clearScreen()
+				
 		@state = 'command'
-		@showCommandPrompt()
+		@showPrompt()
 	
 	onInput: (line) ->
 		if @state is 'command'
 			@processCommand line
 		else
 			if line.length is 0
-				request = @pending
-				delete @pending
-				@executeRequest request
+				@executeRequest @pending
 			else
 				if @pending.data? then @pending.data += line else @pending.data = line
-				@showDataPrompt()
+				@showPrompt()
 	
 	onClose: ->
 		console.log '\nkbye'
-		process.exit()
+		process.exit(0)
 	
 	processCommand: (line) ->
 		[command, args...] = line.split /\s+/
@@ -64,33 +67,35 @@ class RestConsole
 			request = {method: command, path: path}
 			if command is 'put' or command is 'post'
 				@pending = request
-				@showDataPrompt()
+				@showPrompt()
 			else
 				@execute request
 			return
-		else
+		else if command isnt ''
 			console.log "unknown command #{command}".yellow
 		
-		@showCommandPrompt()
+		@showPrompt()
 	
 	execute: (request) ->
 		@makeRequest request, (response, body) =>
 			@showResponse response, body, =>
-				@showCommandPrompt()
+				delete @pending
+				@showPrompt()
 	
-	showCommandPrompt: ->
-		site = "#{@protocol}://#{@host}:#{@port}"
-		path = " /#{@path.join '/'} "
-		end  = '> '
-		@readline.setPrompt site.grey + path.white + end.grey, (site + path + end).length
-		@readline.prompt()
-		@state = 'command'
+	clearScreen: ->
+		process.stdout.write '\u001B[2J\u001B[0;0f'
+		@showPrompt()
 	
-	showDataPrompt: ->
-		prompt = 'json | '
-		@readline.setPrompt prompt.grey, prompt.length
+	showPrompt: ->
+		if @state is 'command'
+			site = "#{@protocol}://#{@host}:#{@port}"
+			path = " /#{@path.join '/'} "
+			end  = '> '
+			@readline.setPrompt site.grey + path.white + end.grey, (site + path + end).length
+		else
+			prompt = 'json | '
+			@readline.setPrompt prompt.grey, prompt.length
 		@readline.prompt()
-		@state = 'data'
 	
 	makeRequest: (spec, callback) ->
 		options =
