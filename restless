@@ -1,0 +1,17 @@
+#!/usr/bin/env ./node_modules/coffee-script/bin/coffee
+
+url = require 'url'
+RestConsole = require './src/RestConsole'
+
+if process.argv.length isnt 3
+	console.log 'Usage: restless <url>'
+	return process.exit(1)
+
+site = url.parse process.argv[2]
+config =
+	protocol: site.protocol.substr(0, site.protocol.length - 1)
+	host:     site.hostname
+	port:     site.port
+
+rest = new RestConsole(config)
+rest.start()

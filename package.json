@@ -1,0 +1,11 @@
+{
+	"name": "restless",
+	"version": "0.0.1",
+	"description": "REST inspection console",
+	"dependencies": {
+		"coffee-script":  "1.2.0",
+		"colors":         "latest",
+		"eyes":           "latest",
+		"underscore":     "latest"
+	}
+}
