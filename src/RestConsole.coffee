@@ -1,12 +1,10 @@
-querystring = require 'querystring'
-readline    = require 'readline'
-colors      = require 'colors'
-inspect     = require('eyes').inspector()
-_           = require 'underscore'
+http     = require 'http'
+readline = require 'readline'
+colors   = require 'colors'
+inspect  = require('eyes').inspector()
+_        = require 'underscore'
 
-protocols =
-	http:  require 'http'
-	https: require 'https'
+Request = require './Request'
 
 class RestConsole
 	
@@ -17,19 +15,18 @@ class RestConsole
 		
 		@cookies = {}
 		@path = []
-		@state = 'starting'
 		
 		@readline  = readline.createInterface(process.stdin, process.stdout)
 	
 	start: ->
 		@readline.on 'line', (line) => @onInput line.trim()
-		@readline.on 'close', => @onClose
+		@readline.on 'close', => @exit()
 		
 		process.stdin.on 'keypress', (s, key) =>
 			if key? and key.ctrl and key.name is 'l'
 				@clearScreen()
 				
-		@state = 'command'
+		@reset()
 		@showPrompt()
 	
 	onInput: (line) ->
@@ -37,14 +34,18 @@ class RestConsole
 			@processCommand line
 		else
 			if line.length is 0
-				@executeRequest @pending
+				@executeRequest()
 			else
-				if @pending.data? then @pending.data += line else @pending.data = line
+				if @request.data? then @request.data += line else @request.data = line
 				@showPrompt()
 	
-	onClose: ->
+	exit: ->
 		console.log '\nkbye'
 		process.exit(0)
+	
+	reset: ->
+		@state = 'command'
+		@request = new Request(@protocol, @host, @port)
 	
 	processCommand: (line) ->
 		[command, args...] = line.split /\s+/
@@ -53,34 +54,41 @@ class RestConsole
 		if command is 'cd'
 			path = @_processPath args[0]
 			if path is null
-				console.log 'invalid path'.yellow
+				console.log 'Invalid path'.yellow
 			else
 				@path = path
+		else if command is 'set'
+			if args.length is 0
+				console.log 'Set what?'.yellow
+				return
+			what = args[0].toLowerCase()
+			if what is 'cookie'
+				@cookies[args[0]] = {value: args[1]}
+				inspect @cookies
+				return
 		else if command in ['get', 'put', 'post', 'delete', 'head']
 			if args.length is 0
 				path = @path
 			else
 				path = @_processPath args[0]
 				if path is null
-					console.log 'invalid path'.yellow
+					console.log 'Invalid path'.yellow
 					return
-			request = {method: command, path: path}
+			@request.method = command
+			@request.path   = path
 			if command is 'put' or command is 'post'
-				@pending = request
+				@state = 'data'
 				@showPrompt()
 			else
-				@execute request
+				@executeRequest()
+			return
+		else if command in ['quit', 'exit']
+			@exit()
 			return
 		else if command isnt ''
 			console.log "unknown command #{command}".yellow
 		
 		@showPrompt()
-	
-	execute: (request) ->
-		@makeRequest request, (response, body) =>
-			@showResponse response, body, =>
-				delete @pending
-				@showPrompt()
 	
 	clearScreen: ->
 		process.stdout.write '\u001B[2J\u001B[0;0f'
@@ -97,34 +105,15 @@ class RestConsole
 			@readline.setPrompt prompt.grey, prompt.length
 		@readline.prompt()
 	
-	makeRequest: (spec, callback) ->
-		options =
-			host:   @host
-			port:   @port
-			method: spec.method.toUpperCase()
-			path:   encodeURI '/' + spec.path.join('/')
-			
-		options.headers = _.extend {}, options.headers,
-			'Host':         @host
-			'Accept':       'application/json'
-			'Content-Type': 'application/json'
-			
-		request = protocols[@protocol].request options, (response) =>
-			for name, cookie of @_getCookies(response)
-				@cookies[name] = cookie
-			body = ''
-			response.setEncoding('utf8')
-			response.on 'data', (chunk) -> body += chunk
-			response.on 'end', -> callback(response, body)
-		
-		@_setCookies(request)
-		
-		request.setTimeout 10000
-		request.write(spec.data) if spec.data?
-		request.end()
+	executeRequest: ->
+		@request.execute (response, body, cookies) =>
+			@cookies = cookies
+			@showResponse response, body, =>
+				@reset()
+				@showPrompt()
 	
 	showResponse: (response, body, callback) ->
-		status = "HTTP/#{response.httpVersion} #{response.statusCode} #{protocols.http.STATUS_CODES[response.statusCode]}"
+		status = "HTTP/#{response.httpVersion} #{response.statusCode} #{http.STATUS_CODES[response.statusCode]}"
 		
 		if      response.statusCode >= 500 then status = status.red
 		else if response.statusCode >= 400 then status = status.yellow
@@ -163,37 +152,5 @@ class RestConsole
 				else
 					path.push segment
 		return path
-	
-	_setCookies: (request) ->
-		return unless @cookies.length > 0
-		makeHeaderSegment = (cookie) ->
-			header = "#{cookie.name}=#{querystring.escape(cookie.value)}"
-			op = cookie.options
-			if op.path?     then header += "; path=#{op.path}"
-			if op.expires?  then header += "; expires=#{op.expires.toUTCString()}"
-			if op.domain?   then header += "; domain=#{op.domain}"
-			if op.secure?   then header += "; secure"
-			if op.httpOnly? then header += "; httpOnly"
-		request.headers['Cookie'] = (makeHeaderSegment cookie for name, cookie in @cookies).join ', '
-	
-	_getCookies: (response) ->
-		headers = response.headers['set-cookie']
-		cookies = {}
-		
-		if headers?
-			for header in headers
-				pairs  = header.split /; */
-				tokens = pairs.shift().match(/^(.+?)=(.*)$/).slice(1)
-				cookie =
-					name:    tokens[0]
-					value:   querystring.unescape tokens[1]
-					options: {}
-				for pair in pairs
-					[name, value] = token.split '='
-					cookie.options[name] = value ? true
-					if name is 'expires' then cookie.options.expires = new Date(cookie.options.expires)
-				cookies[cookie.name] = cookie
-		
-		return cookies
 	
 module.exports = RestConsole
