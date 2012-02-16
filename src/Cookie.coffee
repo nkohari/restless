@@ -3,6 +3,9 @@ querystring = require 'querystring'
 class Cookie
 	
 	constructor: (@name, @value, @options = {}) ->
+		expires = @options.expires
+		if expires? and _.isString(expires)
+			@options.expires = new Date(expires)
 	
 	toHeader: ->
 		header = "#{@name}=#{querystring.escape(@value)}"

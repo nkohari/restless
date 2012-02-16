@@ -2,9 +2,9 @@ http     = require 'http'
 readline = require 'readline'
 colors   = require 'colors'
 inspect  = require('eyes').inspector()
-_        = require 'underscore'
 
-Request = require './Request'
+Request   = require './Request'
+CookieJar = require './CookieJar'
 
 class RestConsole
 	
@@ -13,14 +13,18 @@ class RestConsole
 		@host     = config.host     ? 'localhost'
 		@port     = config.port     ? 80
 		
-		@cookies = {}
+		@cookieJar = new CookieJar config.cookieFile ? 'cookies.json'
 		@path = []
 		
 		@readline  = readline.createInterface(process.stdin, process.stdout)
 	
 	start: ->
-		@readline.on 'line', (line) => @onInput line.trim()
-		@readline.on 'close', => @exit()
+		@readline.on 'line', (line) =>
+			@onInput line.trim()
+			
+		@readline.on 'close', =>
+			console.log()
+			@exit()
 		
 		process.stdin.on 'keypress', (s, key) =>
 			if key? and key.ctrl and key.name is 'l'
@@ -40,12 +44,12 @@ class RestConsole
 				@showPrompt()
 	
 	exit: ->
-		console.log '\nkbye'
+		console.log 'Bye.'
 		process.exit(0)
 	
 	reset: ->
 		@state = 'command'
-		@request = new Request(@protocol, @host, @port)
+		@request = new Request(@protocol, @host, @port, @cookieJar)
 	
 	processCommand: (line) ->
 		[command, args...] = line.split /\s+/
@@ -54,39 +58,48 @@ class RestConsole
 		if command is 'cd'
 			path = @_processPath args[0]
 			if path is null
-				console.log 'Invalid path'.yellow
+				console.log 'Invalid path'.red
 			else
 				@path = path
+				
 		else if command is 'set'
-			if args.length is 0
-				console.log 'Set what?'.yellow
-				return
-			what = args[0].toLowerCase()
-			if what is 'cookie'
-				@cookies[args[0]] = {value: args[1]}
-				inspect @cookies
-				return
-		else if command in ['get', 'put', 'post', 'delete', 'head']
-			if args.length is 0
-				path = @path
+			what = args?[0]
+			if not what?
+				console.log 'Set what?'.red
+			else if what is 'header'
+				[name, value] = args[1].split /\s*=\s*/
+				@request.setHeader(name, value)
 			else
-				path = @_processPath args[0]
-				if path is null
-					console.log 'Invalid path'.yellow
-					return
+				console.log "I don't know how to set #{what.bold}".red
+				
+		else if command is 'show'
+			what = args?[0]
+			if not what?
+				console.log 'Show what?'.yellow
+			else if what is 'cookies'
+				inspect(@cookieJar.cookies)
+			else if what is 'headers'
+				inspect(@request.headers)
+			else
+				console.log "I don't know how to show #{what.bold}".red
+				
+		else if command in ['get', 'put', 'post', 'delete', 'head']
 			@request.method = command
-			@request.path   = path
+			@request.path   = @path
+			if args.length > 0 then @request.setFormat args[0]
 			if command is 'put' or command is 'post'
 				@state = 'data'
 				@showPrompt()
 			else
 				@executeRequest()
 			return
+			
 		else if command in ['quit', 'exit']
 			@exit()
 			return
+			
 		else if command isnt ''
-			console.log "unknown command #{command}".yellow
+			console.log "Unknown command #{command.bold}".red
 		
 		@showPrompt()
 	
@@ -96,18 +109,18 @@ class RestConsole
 	
 	showPrompt: ->
 		if @state is 'command'
-			site = "#{@protocol}://#{@host}:#{@port}"
-			path = " /#{@path.join '/'} "
-			end  = '> '
-			@readline.setPrompt site.grey + path.white + end.grey, (site + path + end).length
+			path = '/' + @path.join '/'
+			end  = ' > '
+			@readline.setPrompt path.white + end.grey, (path + end).length
 		else
-			prompt = 'json | '
-			@readline.setPrompt prompt.grey, prompt.length
+			format = @request.format
+			end    = ' | '
+			@readline.setPrompt format.white + end.grey, (format + end).length
 		@readline.prompt()
 	
 	executeRequest: ->
-		@request.execute (response, body, cookies) =>
-			@cookies = cookies
+		@request.execute (response, body) =>
+			@cookieJar.update(response)
 			@showResponse response, body, =>
 				@reset()
 				@showPrompt()
@@ -121,8 +134,7 @@ class RestConsole
 		else status = status.green
 		
 		console.log status
-		for header in response.headers
-			console.log "#{header.white}: #{response.headers[header].grey}"
+		inspect(response.headers)
 		
 		try
 			result = JSON.parse(body)
@@ -130,7 +142,8 @@ class RestConsole
 			result = body.trim()
 		
 		if _.isString(result)
-			console.log result.white
+			if result.length isnt 0
+				console.log result.white
 		else
 			inspect(result)
 		

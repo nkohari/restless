@@ -3,6 +3,8 @@
 url = require 'url'
 RestConsole = require './src/RestConsole'
 
+global._ = require 'underscore'
+
 if process.argv.length isnt 3
 	console.log 'Usage: restless <url>'
 	return process.exit(1)
