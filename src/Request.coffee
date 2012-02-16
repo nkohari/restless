@@ -11,8 +11,9 @@ contentTypes =
 
 class Request
 	
-	constructor: (@protocol, @host, @port, @cookieJar) ->
-		@headers = {'Host': @host}
+	constructor: (@protocol, @host, @port, @cookieJar, headers = {}) ->
+		@headers = _.extend headers, 
+			'Host': @host
 		@setFormat 'json'
 	
 	setFormat: (format) ->

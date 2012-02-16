@@ -15,6 +15,7 @@ class RestConsole
 		
 		@cookieJar = new CookieJar config.cookieFile ? 'cookies.json'
 		@path = []
+		@stickyHeaders = {}
 		
 		@readline  = readline.createInterface(process.stdin, process.stdout)
 	
@@ -49,7 +50,7 @@ class RestConsole
 	
 	reset: ->
 		@state = 'command'
-		@request = new Request(@protocol, @host, @port, @cookieJar)
+		@request = new Request(@protocol, @host, @port, @cookieJar, @stickyHeaders)
 	
 	processCommand: (line) ->
 		[command, args...] = line.split /\s+/
@@ -69,6 +70,7 @@ class RestConsole
 			else if what is 'header'
 				[name, value] = args[1].split /\s*=\s*/
 				@request.setHeader(name, value)
+				if args?[2] is 'sticky' then @stickyHeaders[name] = value
 			else
 				console.log "I don't know how to set #{what.bold}".red
 				
@@ -109,9 +111,10 @@ class RestConsole
 	
 	showPrompt: ->
 		if @state is 'command'
+			site = "#{@protocol}://#{@host}:#{@port} "
 			path = '/' + @path.join '/'
 			end  = ' > '
-			@readline.setPrompt path.white + end.grey, (path + end).length
+			@readline.setPrompt site.grey + path.white + end.grey, (site + path + end).length
 		else
 			format = @request.format
 			end    = ' | '
