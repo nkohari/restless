@@ -16,8 +16,14 @@ class RestConsole
 		@cookieJar = new CookieJar config.cookieFile ? 'cookies.json'
 		@path = []
 		@stickyHeaders = {}
+		@state = 'command'
 		
 		@readline  = readline.createInterface(process.stdin, process.stdout)
+		
+		process.on 'uncaughtException', (err) =>
+			console.log 'Uncaught exception:'.red.bold
+			console.log err.toString().red
+			@showPrompt()
 	
 	start: ->
 		@readline.on 'line', (line) =>
@@ -49,7 +55,6 @@ class RestConsole
 		process.exit(0)
 	
 	reset: ->
-		@state = 'command'
 		@request = new Request(@protocol, @host, @port, @cookieJar, @stickyHeaders)
 	
 	processCommand: (line) ->
@@ -122,6 +127,7 @@ class RestConsole
 		@readline.prompt()
 	
 	executeRequest: ->
+		@state = 'command'
 		@request.execute (response, body) =>
 			@cookieJar.update(response)
 			@showResponse response, body, =>
