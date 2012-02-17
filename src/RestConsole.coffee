@@ -1,7 +1,5 @@
 http     = require 'http'
 readline = require 'readline'
-colors   = require 'colors'
-inspect  = require('eyes').inspector()
 
 Request   = require './Request'
 CookieJar = require './CookieJar'
@@ -16,9 +14,8 @@ class RestConsole
 		@cookieJar = new CookieJar config.cookieFile ? 'cookies.json'
 		@path = []
 		@stickyHeaders = {}
-		@state = 'command'
 		
-		@readline  = readline.createInterface(process.stdin, process.stdout)
+		@readline = readline.createInterface(process.stdin, process.stdout)
 		
 		process.on 'uncaughtException', (err) =>
 			console.log 'Uncaught exception:'.red.bold
@@ -27,7 +24,7 @@ class RestConsole
 	
 	start: ->
 		@readline.on 'line', (line) =>
-			@onInput line.trim()
+			@processCommand line.trim()
 			
 		@readline.on 'close', =>
 			console.log()
@@ -39,16 +36,6 @@ class RestConsole
 				
 		@reset()
 		@showPrompt()
-	
-	onInput: (line) ->
-		if @state is 'command'
-			@processCommand line
-		else
-			if line.length is 0
-				@executeRequest()
-			else
-				if @request.data? then @request.data += line else @request.data = line
-				@showPrompt()
 	
 	exit: ->
 		console.log 'Bye.'
@@ -95,8 +82,9 @@ class RestConsole
 			@request.path   = @path
 			if args.length > 0 then @request.setFormat args[0]
 			if command is 'put' or command is 'post'
-				@state = 'data'
-				@showPrompt()
+				@getData (data) =>
+					@request.data = data
+					@executeRequest()
 			else
 				@executeRequest()
 			return
@@ -115,19 +103,16 @@ class RestConsole
 		@showPrompt()
 	
 	showPrompt: ->
-		if @state is 'command'
-			site = "#{@protocol}://#{@host}:#{@port} "
-			path = '/' + @path.join '/'
-			end  = ' > '
-			@readline.setPrompt site.grey + path.white + end.grey, (site + path + end).length
-		else
-			format = @request.format
-			end    = ' | '
-			@readline.setPrompt format.white + end.grey, (format + end).length
+		site = "#{@protocol}://#{@host}:#{@port} "
+		path = '/' + @path.join '/'
+		end  = ' > '
+		@readline.setPrompt site.grey + path.white + end.grey, (site + path + end).length
 		@readline.prompt()
 	
+	getData: (callback) ->
+		@readline.question "#{@request.format} | ", callback
+	
 	executeRequest: ->
-		@state = 'command'
 		@request.execute (response, body) =>
 			@cookieJar.update(response)
 			@showResponse response, body, =>

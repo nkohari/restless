@@ -1,5 +1,4 @@
 querystring = require 'querystring'
-inspect     = require('eyes').inspector()
 
 protocols =
 	http:  require 'http'

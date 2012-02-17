@@ -1,6 +1,5 @@
 fs          = require 'fs'
 querystring = require 'querystring'
-inspect     = require('eyes').inspector()
 
 Cookie = require './Cookie'
 
