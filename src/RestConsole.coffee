@@ -45,8 +45,8 @@ class RestConsole
 		@request = new Request(@protocol, @host, @port, @cookieJar, @stickyHeaders)
 	
 	processCommand: (line) ->
-		[command, args...] = line.split /\s+/
-		command = command.toLowerCase()
+		args = line.match /(\w+="[^"]+")|("[^"]+")|(\w+)/g
+		command = args.shift().toLowerCase()
 		
 		if command is 'cd'
 			path = @_processPath args[0]
@@ -61,6 +61,8 @@ class RestConsole
 				console.log 'Set what?'.red
 			else if what is 'header'
 				[name, value] = args[1].split /\s*=\s*/
+				if value[0] is '"' then value = value.substr(1, value.length - 2)
+
 				@request.setHeader(name, value)
 				if args?[2] is 'sticky' then @stickyHeaders[name] = value
 			else
