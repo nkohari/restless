@@ -45,7 +45,7 @@ class RestConsole
 		@request = new Request(@protocol, @host, @port, @cookieJar, @stickyHeaders)
 	
 	processCommand: (line) ->
-		args = line.match /(\w+="[^"]+")|("[^"]+")|(\w+)/g
+		args = line.match /(\w+=\w+)|(\w+="[^"]+")|("[^"]+")|(\w+)/g
 		command = args.shift().toLowerCase()
 		
 		if command is 'cd'
