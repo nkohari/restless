@@ -7,6 +7,7 @@ protocols =
 contentTypes =
 	json:       'application/json'
 	urlencoded: 'application/x-www-form-urlencoded'
+	xml:        'application/xml'
 
 class Request
 	
