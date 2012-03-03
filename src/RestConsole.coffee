@@ -45,7 +45,7 @@ class RestConsole
 		@request = new Request(@protocol, @host, @port, @cookieJar, @stickyHeaders)
 	
 	processCommand: (line) ->
-		args = line.match /(\w+=\w+)|(\w+="[^"]+")|("[^"]+")|(\w+)/g
+		args = line.match /("[^"]+"="[^"]+")|("[^"]+"=[^\s]+)|([^\s]+="[^"]+")|("[^"]+")|([^\s]+)/g
 		command = args.shift().toLowerCase()
 		
 		if command is 'cd'
@@ -61,7 +61,8 @@ class RestConsole
 				console.log 'Set what?'.red
 			else if what is 'header'
 				[name, value] = args[1].split /\s*=\s*/
-				if value[0] is '"' then value = value.substr(1, value.length - 2)
+				name = @_trimQuotes name
+				value = @_trimQuotes value
 
 				@request.setHeader(name, value)
 				if args?[2] is 'sticky' then @stickyHeaders[name] = value
@@ -161,5 +162,8 @@ class RestConsole
 				else
 					path.push segment
 		return path
+		
+	_trimQuotes: (str) ->
+		if str[0] is '"' then str.substr(1, str.length - 2) else str
 	
 module.exports = RestConsole
