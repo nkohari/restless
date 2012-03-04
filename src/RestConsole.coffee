@@ -80,7 +80,7 @@ class RestConsole
 			else
 				console.log "I don't know how to show #{what.bold}".red
 				
-		else if command in ['get', 'put', 'post', 'delete', 'head']
+		else if command in ['get', 'put', 'post', 'delete', 'head', 'patch', 'options']
 			@request.method = command
 			@request.path   = @path
 			if args.length > 0 then @request.setFormat args[0]
