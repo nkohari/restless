@@ -9,7 +9,11 @@ class RestConsole
 	constructor: (config) ->
 		@protocol = config.protocol ? 'http'
 		@host     = config.host     ? 'localhost'
-		@port     = config.port     ? 80
+		@port     = config.port
+		unless @port?
+			@port = switch @protocol
+				when 'http' then 80
+				when 'https' then 443
 		
 		@cookieJar = new CookieJar config.cookieFile ? 'cookies.json'
 		@path = []
