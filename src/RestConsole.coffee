@@ -49,6 +49,7 @@ class RestConsole
 		@request = new Request(@protocol, @host, @port, @cookieJar, @stickyHeaders)
 	
 	processCommand: (line) ->
+		unless line then return @showPrompt()
 		args = line.match /("[^"]+"="[^"]+")|("[^"]+"=[^\s]+)|([^\s]+="[^"]+")|("[^"]+")|([^\s]+)/g
 		command = args.shift().toLowerCase()
 		
