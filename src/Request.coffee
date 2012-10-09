@@ -15,6 +15,8 @@ class Request
 		@headers = _.extend headers, 
 			'Host': @host
 		@setFormat 'json'
+		
+		@data = ""
 	
 	setFormat: (format) ->
 		@format = format
@@ -24,9 +26,10 @@ class Request
 		@headers[name] = value
 	
 	addData: (line) ->
-		if @data? then @data += line else @data = line
+		@data += line
 	
 	execute: (callback) ->
+		@headers['content-length'] = Buffer.byteLength @data, 'utf8'
 		options =
 			host:    @host
 			port:    @port

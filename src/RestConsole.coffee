@@ -9,9 +9,13 @@ class RestConsole
 	constructor: (config) ->
 		@protocol = config.protocol ? 'http'
 		@host     = config.host     ? 'localhost'
-		@port     = config.port     ? 80
+		@port     = config.port
+		unless @port?
+			@port = switch @protocol
+				when 'http' then 80
+				when 'https' then 443
 		
-		@cookieJar = new CookieJar config.cookieFile ? 'cookies.json'
+		@cookieJar = new CookieJar "#{__dirname}/../cookies.json"
 		@path = []
 		@stickyHeaders = {}
 		
@@ -45,6 +49,7 @@ class RestConsole
 		@request = new Request(@protocol, @host, @port, @cookieJar, @stickyHeaders)
 	
 	processCommand: (line) ->
+		unless line then return @showPrompt()
 		args = line.match /("[^"]+"="[^"]+")|("[^"]+"=[^\s]+)|([^\s]+="[^"]+")|("[^"]+")|([^\s]+)/g
 		command = args.shift().toLowerCase()
 		

@@ -2,6 +2,8 @@
 	"name": "restless",
 	"version": "0.0.1",
 	"description": "REST inspection console",
+	"preferGlobal": "true",
+	"bin": {"restless": "restless"},
 	"dependencies": {
 		"coffee-script":  "1.2.0",
 		"colors":         "latest",
