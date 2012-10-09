@@ -10,7 +10,6 @@ class RestConsole
 		@protocol = config.protocol ? 'http'
 		@host     = config.host     ? 'localhost'
 		@port     = config.port
-		console.log __dirname
 		unless @port?
 			@port = switch @protocol
 				when 'http' then 80
