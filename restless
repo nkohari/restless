@@ -1,4 +1,4 @@
-#!/usr/bin/env ./node_modules/coffee-script/bin/coffee
+#!/usr/bin/env /usr/local/bin/coffee
 
 url = require 'url'
 RestConsole = require './src/RestConsole'
@@ -12,9 +12,11 @@ if process.argv.length isnt 3
 	console.log 'Usage: restless <url>'
 	return process.exit(1)
 
-site = url.parse process.argv[2]
+address = process.argv[2]
+unless address.match /^http/ then address = "http://#{address}"
+site = url.parse address
 config =
-	protocol: site.protocol.substr(0, site.protocol.length - 1)
+	protocol: if site.protocol then site.protocol.substr(0, site.protocol.length - 1) else null
 	host:     site.hostname
 	port:     site.port
 
