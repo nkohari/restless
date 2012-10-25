@@ -1,6 +1,6 @@
 {
 	"name": "restless",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"description": "REST inspection console",
 	"preferGlobal": "true",
 	"bin": {"restless": "restless"},
